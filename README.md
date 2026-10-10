@@ -31,3 +31,7 @@ garmr is built for [clickhouse-observability-stack](https://github.com/benhastin
 - **Build rather than adopt Keep.** Keep is the reference design. Its single sign-on through Keycloak is enterprise-licensed, it needs its own database, and it doesn't store state in ClickHouse.
 - **Written in Go**, as small binaries sized for a laptop.
 - **First version (v0) sits behind Alertmanager**, which keeps grouping and silences while garmr adds incidents, enrichment and Slack threads. **v1** takes alerts directly.
+
+## License
+
+[MIT](LICENSE)
