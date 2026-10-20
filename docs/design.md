@@ -142,13 +142,14 @@ test runs.
 ## Running it
 
 **In clickhouse-observability-stack**, garmr is a node named `garmr`, beside `garmr-sql-adapter`. It needs these
-stack changes, tracked there:
+stack changes, tracked in clickhouse-observability-stack#230 and #231:
 
 - **A Keeper.** The embedded Keeper in the `ClickHouseInstallation`, about 70 MiB, plus
   `keeper_map_path_prefix`. A `ClickHouseKeeperInstallation` is the HA option.
 - **The schema** in the schema Job: `schema/garmr.sql`.
-- **A user, `garmr`**: `SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON garmr.*`, plus `SELECT` on `otel.*`,
-  `otel_features.*` and `otel_baseline.*`, with its password in the Secret `clickhouse-garmr`.
+- **A user, `otel_garmr`** (the stack names users `otel_<job>`): `SELECT, INSERT, ALTER UPDATE, ALTER DELETE ON
+  garmr.*`, plus `SELECT` on `otel.*`, `otel_features.*` and `otel_baseline.*`, with its password in the Secret
+  `clickhouse-garmr`.
 - **Alertmanager** routes every alert but the Watchdog to garmr's webhook, with `continue: true`. Alertmanager's
   own Slack receiver stays as an alternative, but an environment turns on one or the other.
 - **Slack tokens** in the Secret `garmr-slack` (keys `bot-token` and `app-token`), which nothing in git creates,
