@@ -1,5 +1,6 @@
-// Command garmr is the ClickHouse-native incident layer. Today it has one subcommand:
+// Command garmr is the ClickHouse-native incident layer:
 //
+//	garmr serve         turn Alertmanager's notifications into incidents, with a Slack thread each
 //	garmr sql-adapter   serve vmalert's Prometheus-API queries by running ClickHouse SQL rules
 package main
 
@@ -17,6 +18,7 @@ import (
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
+	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 
 	"github.com/benhastings/garmr/internal/chquery"
 	"github.com/benhastings/garmr/internal/promapi"
@@ -28,10 +30,11 @@ var version = "dev"
 const usage = `garmr: a ClickHouse-native incident layer
 
 Usage:
+  garmr serve [flags]         turn Alertmanager's notifications into incidents, with a Slack thread each
   garmr sql-adapter [flags]   serve vmalert's queries by running ClickHouse SQL rules
   garmr version
 
-Run "garmr sql-adapter -h" for its flags.
+Run "garmr <command> -h" for its flags.
 `
 
 func main() {
@@ -40,6 +43,11 @@ func main() {
 		os.Exit(2)
 	}
 	switch os.Args[1] {
+	case "serve":
+		if err := serve(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, "garmr serve:", err)
+			os.Exit(1)
+		}
 	case "sql-adapter":
 		if err := sqlAdapter(os.Args[2:]); err != nil {
 			fmt.Fprintln(os.Stderr, "garmr sql-adapter:", err)
@@ -68,21 +76,7 @@ func sqlAdapter(args []string) error {
 	_ = fs.Parse(args)
 
 	log := newLogger(*logFormat)
-	password := os.Getenv("CLICKHOUSE_PASSWORD")
-	if *passwordFile != "" {
-		b, err := os.ReadFile(*passwordFile)
-		if err != nil {
-			return err
-		}
-		password = strings.TrimSpace(string(b))
-	}
-
-	conn, err := clickhouse.Open(&clickhouse.Options{
-		Addr:        []string{*addr},
-		Auth:        clickhouse.Auth{Database: *database, Username: *user, Password: password},
-		ClientInfo:  clickhouse.ClientInfo{Products: []struct{ Name, Version string }{{Name: "garmr-sql-adapter", Version: version}}},
-		DialTimeout: 10 * time.Second,
-	})
+	conn, err := openClickHouse(*addr, *database, *user, *passwordFile, "garmr-sql-adapter")
 	if err != nil {
 		return err
 	}
@@ -110,6 +104,32 @@ func sqlAdapter(args []string) error {
 		return err
 	}
 	return nil
+}
+
+// openClickHouse connects with the password from passwordFile or, without one, CLICKHOUSE_PASSWORD.
+func openClickHouse(addr, database, user, passwordFile, product string) (driver.Conn, error) {
+	password, err := secret(passwordFile, "CLICKHOUSE_PASSWORD")
+	if err != nil {
+		return nil, err
+	}
+	return clickhouse.Open(&clickhouse.Options{
+		Addr:        []string{addr},
+		Auth:        clickhouse.Auth{Database: database, Username: user, Password: password},
+		ClientInfo:  clickhouse.ClientInfo{Products: []struct{ Name, Version string }{{Name: product, Version: version}}},
+		DialTimeout: 10 * time.Second,
+	})
+}
+
+// secret reads file, trimmed, or the environment variable env when file is empty.
+func secret(file, env string) (string, error) {
+	if file == "" {
+		return os.Getenv(env), nil
+	}
+	b, err := os.ReadFile(file)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(b)), nil
 }
 
 func envOr(name, def string) string {
