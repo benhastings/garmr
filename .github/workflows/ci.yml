@@ -11,18 +11,21 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    services:
-      clickhouse:
-        # The version clickhouse-observability-stack runs.
-        image: clickhouse/clickhouse-server:26.9.5.2
-        env:
-          CLICKHOUSE_SKIP_USER_SETUP: "1"
-        ports:
-          - 9000:9000
-        options: >-
-          --health-cmd "clickhouse-client -q 'SELECT 1'" --health-interval 5s --health-retries 20
     steps:
       - uses: actions/checkout@v7
+      # The version clickhouse-observability-stack runs, with an embedded Keeper for garmr's KeeperMap table.
+      # A step rather than a service container, since the config file comes from the checkout.
+      - name: Start ClickHouse
+        run: |
+          docker run -d --name clickhouse -p 9000:9000 -e CLICKHOUSE_SKIP_USER_SETUP=1 \
+            -v "$PWD/testdata/clickhouse/keeper.xml:/etc/clickhouse-server/config.d/keeper.xml:ro" \
+            clickhouse/clickhouse-server:26.9.5.2
+          for _ in $(seq 60); do
+            docker exec clickhouse clickhouse-client -q 'SELECT 1' >/dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          docker logs clickhouse
+          exit 1
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
