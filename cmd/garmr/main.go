@@ -17,9 +17,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ClickHouse/clickhouse-go/v2"
-	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
-
 	"github.com/benhastings/garmr/internal/chquery"
 	"github.com/benhastings/garmr/internal/promapi"
 )
@@ -66,17 +63,15 @@ func main() {
 func sqlAdapter(args []string) error {
 	fs := flag.NewFlagSet("sql-adapter", flag.ExitOnError)
 	listen := fs.String("listen-address", envOr("GARMR_LISTEN_ADDRESS", ":8080"), "address to serve the Prometheus API on")
-	addr := fs.String("clickhouse-addr", envOr("CLICKHOUSE_ADDR", "localhost:9000"), "ClickHouse native protocol address")
+	ch := addClickHouseFlags(fs)
 	database := fs.String("clickhouse-database", envOr("CLICKHOUSE_DATABASE", "otel"), "default database for rules")
 	user := fs.String("clickhouse-user", envOr("CLICKHOUSE_USER", "otel_reader"), "ClickHouse user; give it SELECT only")
-	passwordFile := fs.String("clickhouse-password-file", envOr("CLICKHOUSE_PASSWORD_FILE", ""),
-		"file holding the password; otherwise CLICKHOUSE_PASSWORD is read")
 	timeout := fs.Duration("query-timeout", 30*time.Second, "max_execution_time for each rule evaluation")
 	logFormat := fs.String("log-format", envOr("GARMR_LOG_FORMAT", "json"), "json or text")
 	_ = fs.Parse(args)
 
 	log := newLogger(*logFormat)
-	conn, err := openClickHouse(*addr, *database, *user, *passwordFile, "garmr-sql-adapter")
+	conn, err := openClickHouse(ch, *database, *user, "garmr-sql-adapter")
 	if err != nil {
 		return err
 	}
@@ -99,25 +94,11 @@ func sqlAdapter(args []string) error {
 		_ = srv.Shutdown(shutdown)
 	}()
 
-	log.Info("serving", "listen", *listen, "clickhouse", *addr, "user", *user, "database", *database, "version", version)
+	log.Info("serving", "listen", *listen, "clickhouse", *ch.addr, "tls", *ch.tls, "user", *user, "database", *database, "version", version)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
-}
-
-// openClickHouse connects with the password from passwordFile or, without one, CLICKHOUSE_PASSWORD.
-func openClickHouse(addr, database, user, passwordFile, product string) (driver.Conn, error) {
-	password, err := secret(passwordFile, "CLICKHOUSE_PASSWORD")
-	if err != nil {
-		return nil, err
-	}
-	return clickhouse.Open(&clickhouse.Options{
-		Addr:        []string{addr},
-		Auth:        clickhouse.Auth{Database: database, Username: user, Password: password},
-		ClientInfo:  clickhouse.ClientInfo{Products: []struct{ Name, Version string }{{Name: product, Version: version}}},
-		DialTimeout: 10 * time.Second,
-	})
 }
 
 // secret reads file, trimmed, or the environment variable env when file is empty.
