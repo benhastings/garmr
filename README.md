@@ -110,6 +110,9 @@ Without Slack tokens, garmr still keeps incidents and history; it just doesn't p
 | `-clickhouse-addr` (`CLICKHOUSE_ADDR`) | `localhost:9000` | native protocol |
 | `-clickhouse-user` (`CLICKHOUSE_USER`) | `garmr` | |
 | `-clickhouse-password-file` (`CLICKHOUSE_PASSWORD_FILE`) | | otherwise `CLICKHOUSE_PASSWORD` is read |
+| `-clickhouse-tls` (`CLICKHOUSE_TLS_ENABLED`) | `false` | `true` connects over TLS (port `9440`, usually) and verifies the server's certificate; there is no option to skip verification, and no client certificate is sent |
+| `-clickhouse-tls-ca-file` (`CLICKHOUSE_TLS_CA_FILE`) | | PEM CA bundle that signed the server's certificate; empty uses the system roots |
+| `-clickhouse-tls-server-name` (`CLICKHOUSE_TLS_SERVER_NAME`) | | the name the certificate must carry, also sent as SNI; empty uses the host in `-clickhouse-addr` |
 | `-database` (`GARMR_DATABASE`) | `garmr` | where `schema/garmr.sql`'s tables are |
 | `-slack-bot-token-file` (`SLACK_BOT_TOKEN_FILE`) | | `xoxb-`; otherwise `SLACK_BOT_TOKEN` is read. Without one, nothing goes to Slack |
 | `-slack-app-token-file` (`SLACK_APP_TOKEN_FILE`) | | `xapp-`; otherwise `SLACK_APP_TOKEN` is read |
@@ -168,6 +171,9 @@ groups:
 | `-clickhouse-database` (`CLICKHOUSE_DATABASE`) | `otel` | the default database for unqualified table names |
 | `-clickhouse-user` (`CLICKHOUSE_USER`) | `otel_reader` | |
 | `-clickhouse-password-file` (`CLICKHOUSE_PASSWORD_FILE`) | | otherwise `CLICKHOUSE_PASSWORD` is read |
+| `-clickhouse-tls` (`CLICKHOUSE_TLS_ENABLED`) | `false` | `true` connects over TLS (port `9440`, usually) and verifies the server's certificate; there is no option to skip verification, and no client certificate is sent |
+| `-clickhouse-tls-ca-file` (`CLICKHOUSE_TLS_CA_FILE`) | | PEM CA bundle that signed the server's certificate; empty uses the system roots |
+| `-clickhouse-tls-server-name` (`CLICKHOUSE_TLS_SERVER_NAME`) | | the name the certificate must carry, also sent as SNI; empty uses the host in `-clickhouse-addr` |
 | `-query-timeout` | `30s` | |
 | `-log-format` (`GARMR_LOG_FORMAT`) | `json` | or `text` |
 

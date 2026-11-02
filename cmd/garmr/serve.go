@@ -26,11 +26,9 @@ import (
 func serve(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	listen := fs.String("listen-address", envOr("GARMR_LISTEN_ADDRESS", ":8080"), "address to serve the webhook, health and metrics on")
-	addr := fs.String("clickhouse-addr", envOr("CLICKHOUSE_ADDR", "localhost:9000"), "ClickHouse native protocol address")
+	ch := addClickHouseFlags(fs)
 	database := fs.String("database", envOr("GARMR_DATABASE", "garmr"), "the database holding garmr's tables (schema/garmr.sql)")
 	user := fs.String("clickhouse-user", envOr("CLICKHOUSE_USER", "garmr"), "ClickHouse user; it writes garmr.* and reads the telemetry")
-	passwordFile := fs.String("clickhouse-password-file", envOr("CLICKHOUSE_PASSWORD_FILE", ""),
-		"file holding the password; otherwise CLICKHOUSE_PASSWORD is read")
 	botTokenFile := fs.String("slack-bot-token-file", envOr("SLACK_BOT_TOKEN_FILE", ""),
 		"file holding the Slack bot token (xoxb-, chat:write); otherwise SLACK_BOT_TOKEN is read. Without one, nothing goes to Slack")
 	appTokenFile := fs.String("slack-app-token-file", envOr("SLACK_APP_TOKEN_FILE", ""),
@@ -43,7 +41,7 @@ func serve(args []string) error {
 	_ = fs.Parse(args)
 
 	log := newLogger(*logFormat)
-	conn, err := openClickHouse(*addr, *database, *user, *passwordFile, "garmr")
+	conn, err := openClickHouse(ch, *database, *user, "garmr")
 	if err != nil {
 		return err
 	}
@@ -97,7 +95,7 @@ func serve(args []string) error {
 	}()
 	go countOpen(ctx, st, log)
 
-	log.Info("serving", "listen", *listen, "clickhouse", *addr, "user", *user, "database", *database,
+	log.Info("serving", "listen", *listen, "clickhouse", *ch.addr, "tls", *ch.tls, "user", *user, "database", *database,
 		"slack", listener != nil, "silences", engine.Silencer != nil, "version", version)
 	select {
 	case <-ctx.Done():
